@@ -1,4 +1,4 @@
-## JavaScript Implementation — Aliza Shrestha
+## JavaScript Implementation
 
 A terminal-based collaborative to-do list built with JavaScript and Node.js.
 
