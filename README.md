@@ -1,95 +1,75 @@
-# Collaborative To-Do List
+## JavaScript Implementation — Aliza Shrestha
 
-## MSCS-632-M30 Advanced Programming Languages
-### Cross-Language Application Development Group Project
+A terminal-based collaborative to-do list built with JavaScript and Node.js.
 
-## Project Overview
+### Features
 
-The Collaborative To-Do List is a cross-language application that will be
-implemented independently in Java and JavaScript. Both implementations will
-provide the same core functionality while demonstrating the different
-features and programming approaches of each language.
+- Create and view users.
+- Add tasks with a category and assigned user.
+- View all tasks or filter by user or category.
+- Mark tasks as completed.
+- Delete and reassign tasks.
+- Delete users and their assigned tasks after confirmation.
+- Reject duplicate usernames, ignoring capitalization.
+- Reject duplicate task titles assigned to the same user, ignoring capitalization.
+- Save users, tasks, and ID counters to JSON.
+- Load saved data when the application starts.
+- Demonstrate asynchronous concurrency with two simulated user operations.
 
-## Planned Features
+### Requirements and Running
 
-- Create and manage multiple users
-- Add new tasks
-- Assign tasks to users
-- Categorize tasks
-- Track task status as Pending or Completed
-- View all tasks
-- View tasks assigned to a specific user
-- Filter tasks by category
-- Mark tasks as completed
-- Remove tasks
-- Simulate concurrent access by multiple users
+Install Node.js. No additional npm packages are required.
 
-## Java Implementation
+From the repository root, run:
 
-The Java version will demonstrate:
+```bash
+node javascript/app.js
+```
 
-- Object-oriented programming
-- Classes and objects
-- Static typing
-- ArrayList collections
-- Enums
-- Exception handling
-- Threads
-- Synchronization
+Choose an option from the terminal menu. Select option 12 to exit.
 
-## JavaScript Implementation
+### Modules
 
-The JavaScript version will demonstrate:
+| File                            | Purpose                                       |
+| ------------------------------- | --------------------------------------------- |
+| `javascript/app.js`             | Displays the menu and handles terminal input. |
+| `javascript/user.js`            | Defines the User class.                       |
+| `javascript/task.js`            | Defines the Task class.                       |
+| `javascript/taskManager.js`     | Manages users, tasks, and validation rules.   |
+| `javascript/storage.js`         | Reads and writes JSON data.                   |
+| `javascript/concurrencyDemo.js` | Runs two overlapping asynchronous operations. |
+| `javascript/data.json`          | Stores saved application data.                |
 
-- Classes and objects
-- Dynamic typing
-- Arrays
-- JavaScript modules
-- Error handling
-- Promises
-- async/await
-- Asynchronous programming
+### JSON Storage
 
-## Planned Project Structure
+Successful changes are saved immediately to `javascript/data.json`.
+The application restores users, tasks, task statuses, and ID counters
+when it restarts.
 
-Collaborative-ToDo-List/
-- java/
-- javascript/
-- screenshots/
-- documents/
-- README.md
+If the file does not exist, the application starts with empty lists.
+User and task IDs are not renumbered after deletion.
 
-## Project Schedule
+### Concurrency Demonstration
 
-### Day 1 - Planning and Design
-- Define application requirements
-- Design Java and JavaScript implementations
-- Create GitHub repository
-- Assign responsibilities
-- Create project timeline
-- Complete initial planning documentation
+Option 11 uses `async/await`, timers, and `Promise.all()` to simulate
+two users adding tasks with overlapping waiting periods.
 
-### Day 2 - Core Implementation
-- Implement core functionality in Java
-- Implement core functionality in JavaScript
-- Add language-specific features
-- Test and debug both applications
-- Capture screenshots
+Both operations start before either finishes. The operation with the
+shorter delay normally finishes first. Task updates execute sequentially
+on the JavaScript event loop.
 
-### Day 3 - Finalization and Comparison
-- Complete remaining functionality
-- Perform final testing
-- Compare Java and JavaScript implementations
-- Complete APA comparison report
-- Complete project documentation
-- Prepare final presentation
+The demo uses a separate copy of the application data. Its tasks are
+not added to the main task list or saved to JSON.
 
-## Languages
+This demonstrates simulated asynchronous concurrency within one process.
+The application does not support simultaneous editing through separate
+terminal instances sharing the same JSON file.
 
-- Java
-- JavaScript
+### Manual Checks Completed
 
-## Course
-
-MSCS-632-M30 Advanced Programming Languages  
-University of the Cumberlands
+- Saved users and tasks loaded successfully.
+- Duplicate usernames were rejected.
+- Duplicate task titles for the same user were rejected.
+- Completed task status remained after restarting.
+- Both concurrency demo operations finished.
+- Saved tasks remained unchanged after the demo.
