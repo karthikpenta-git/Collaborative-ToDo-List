@@ -1,306 +1,463 @@
 const readline = require("node:readline/promises");
 const { stdin, stdout } = require("node:process");
+
 const TaskManager = require("./taskManager");
 const { loadData, saveData } = require("./storage");
 const runConcurrencyDemo = require("./concurrencyDemo");
 
-// Connect the terminal and create the application's task manager.
+// Connect the application to terminal input and output.
 const rl = readline.createInterface({
     input: stdin,
     output: stdout
 });
 
+// Manage users and tasks.
 const manager = new TaskManager();
 
-// Receive a positive whole-number ID.
-async function askForId(question) {
-    const input = (await rl.question(question)).trim();
-    const id = Number(input);
+// Define terminal colors.
+const colors = {
+    reset: "\x1b[0m",
+    green: "\x1b[32m",
+    red: "\x1b[31m",
+    yellow: "\x1b[33m",
+    cyan: "\x1b[36m"
+};
+
+// Display highlighted feedback.
+function showMessage(message, type = "info") {
+    const messageColors = {
+        success: colors.green,
+        error: colors.red,
+        warning: colors.yellow,
+        info: colors.cyan
+    };
+
+    const color = messageColors[type] || colors.cyan;
+
+    console.log(`\n${color}----------------------------------------`);
+    console.log(`  ${message}`);
+    console.log(`----------------------------------------${colors.reset}\n`);
+}
+
+// Display a highlighted heading.
+function showHeading(title) {
+    console.log(`\n${colors.cyan}${title}${colors.reset}`);
+}
+
+// Display the main menu grouped by purpose.
+function displayMenu() {
+    console.log(`
+${colors.cyan}================================================
+            COLLABORATIVE TO-DO LIST
+================================================${colors.reset}
+
+${colors.cyan}  CREATE${colors.reset}
+    1. Create user
+    2. Add task
+
+${colors.cyan}  VIEW${colors.reset}
+    3. View users
+    4. View all tasks
+    5. View tasks by user
+    6. View tasks by category
+
+${colors.cyan}  UPDATE & DELETE${colors.reset}
+    7. Mark task as completed
+    8. Delete task
+    9. Reassign task
+   10. Delete user
+
+${colors.cyan}  DEMO & EXIT${colors.reset}
+   11. Run concurrency demo
+   12. Exit
+
+${colors.cyan}================================================${colors.reset}
+`);
+}
+
+// Read and validate a user or task ID.
+async function askForId(prompt) {
+    const answer = (await rl.question(prompt)).trim();
+    const id = Number(answer);
 
     if (!Number.isSafeInteger(id) || id <= 0) {
-        throw new Error("Enter a valid positive integer ID.");
+        throw new Error("Enter a valid positive whole-number ID.");
     }
 
     return id;
 }
 
-// Display records or an empty-list message.
-function showRecords(records, emptyMessage) {
+// Display a highlighted table or an empty-list message.
+function showRecords(records, emptyMessage, title) {
     if (records.length === 0) {
-        console.log(emptyMessage);
-    } else {
+        showMessage(emptyMessage, "info");
+        return;
+    }
+
+    if (title) {
+        showHeading(title);
+    }
+
+    console.log(colors.cyan);
+
+    try {
         console.table(records);
+    } finally {
+        console.log(colors.reset);
     }
 }
 
-// Save changes and stop the application if saving fails.
+// Save data after a successful change.
 async function persistChanges() {
     try {
         await saveData(manager.getData());
     } catch (error) {
-        const failure = new Error(`Could not save data: ${error.message}`);
-        failure.stopApplication = true;
-        throw failure;
+        const saveError = new Error(
+            `Could not save data: ${error.message}`
+        );
+
+        saveError.stopApplication = true;
+        throw saveError;
     }
 }
 
+// Create a user.
+async function createUser() {
+    const name = await rl.question("Enter user name: ");
+    const user = manager.addUser(name);
+
+    await persistChanges();
+
+    showMessage(
+        `User created: ${user.name} (ID ${user.id})`,
+        "success"
+    );
+}
+
+// Create a task assigned to an existing user.
+async function addTask() {
+    if (manager.users.length === 0) {
+        showMessage(
+            "No users yet. Create a user first.",
+            "warning"
+        );
+        return;
+    }
+
+    const title = await rl.question("Enter task title: ");
+    const category = await rl.question("Enter category: ");
+
+    showRecords(manager.users, "No users yet.", "Available users:");
+
+    const userId = await askForId("Assign to user ID: ");
+    const task = manager.addTask(title, category, userId);
+
+    await persistChanges();
+
+    showMessage(
+        `Task ${task.id} created and assigned to ` +
+        `${manager.getUser(userId).name}.`,
+        "success"
+    );
+}
+
+// Display tasks assigned to a selected user.
+async function viewTasksByUser() {
+    if (manager.users.length === 0) {
+        showMessage("No users yet.", "info");
+        return;
+    }
+
+    showRecords(manager.users, "No users yet.", "Available users:");
+
+    const userId = await askForId("Enter user ID: ");
+    const user = manager.getUser(userId);
+
+    showRecords(
+        manager.getTasksByUser(userId),
+        "This user has no tasks.",
+        `Tasks assigned to ${user.name}:`
+    );
+}
+
+// Display tasks in the selected category.
+async function viewTasksByCategory() {
+    if (manager.tasks.length === 0) {
+        showMessage("No tasks yet.", "info");
+        return;
+    }
+
+    const category = await rl.question("Enter category: ");
+    const matchingTasks = manager.getTasksByCategory(category);
+
+    showRecords(
+        matchingTasks,
+        "No tasks found in this category.",
+        `Tasks in category "${category.trim()}":`
+    );
+}
+
+// Mark a selected task as completed.
+async function completeTask() {
+    if (manager.tasks.length === 0) {
+        showMessage("No tasks yet.", "info");
+        return;
+    }
+
+    showRecords(manager.tasks, "No tasks yet.", "Available tasks:");
+
+    const taskId = await askForId("Enter task ID to complete: ");
+    const changed = manager.completeTask(taskId);
+
+    if (!changed) {
+        showMessage("This task is already completed.", "info");
+        return;
+    }
+
+    await persistChanges();
+
+    showMessage(
+        `Task completed: ${manager.getTask(taskId).title}`,
+        "success"
+    );
+}
+
+// Delete a selected task.
+async function deleteTask() {
+    if (manager.tasks.length === 0) {
+        showMessage("No tasks yet.", "info");
+        return;
+    }
+
+    showRecords(manager.tasks, "No tasks yet.", "Available tasks:");
+
+    const taskId = await askForId("Enter task ID to delete: ");
+    const task = manager.deleteTask(taskId);
+
+    await persistChanges();
+
+    showMessage(`Task deleted: ${task.title}`, "success");
+}
+
+// Reassign a task to another user.
+async function reassignTask() {
+    if (manager.tasks.length === 0) {
+        showMessage("No tasks yet.", "info");
+        return;
+    }
+
+    showRecords(manager.tasks, "No tasks yet.", "Available tasks:");
+
+    const taskId = await askForId("Enter task ID to reassign: ");
+
+    // Confirm the task exists before requesting a new user.
+    manager.getTask(taskId);
+
+    showRecords(manager.users, "No users yet.", "Available users:");
+
+    const newUserId = await askForId("Enter new user ID: ");
+    const task = manager.reassignTask(taskId, newUserId);
+
+    await persistChanges();
+
+    showMessage(
+        `"${task.title}" reassigned to ` +
+        `${manager.getUser(newUserId).name}.`,
+        "success"
+    );
+}
+
+// Request confirmation before deleting a user and assigned tasks.
+async function deleteUser() {
+    if (manager.users.length === 0) {
+        showMessage("No users yet.", "info");
+        return;
+    }
+
+    showRecords(manager.users, "No users yet.", "Available users:");
+
+    const userId = await askForId("Enter user ID to delete: ");
+    const user = manager.getUser(userId);
+    const assignedTasks = manager.getTasksByUser(userId);
+
+    const pendingCount = assignedTasks.filter(
+        task => task.status === "Pending"
+    ).length;
+
+    const completedCount = assignedTasks.filter(
+        task => task.status === "Completed"
+    ).length;
+
+    showMessage(
+        `${user.name} has ${pendingCount} pending task(s) ` +
+        `and ${completedCount} completed task(s).`,
+        "warning"
+    );
+
+    showMessage(
+        `Deleting this user will also delete all ` +
+        `${assignedTasks.length} assigned task(s).`,
+        "warning"
+    );
+
+    const confirmation = (
+        await rl.question("Type yes to confirm deletion: ")
+    ).trim().toLowerCase();
+
+    if (confirmation !== "yes") {
+        showMessage("User deletion cancelled.", "info");
+        return;
+    }
+
+    manager.deleteUser(userId);
+
+    await persistChanges();
+
+    showMessage(
+        `User and assigned tasks deleted: ${user.name}`,
+        "success"
+    );
+}
+
+// Highlight progress messages and tables from the existing demo.
+async function displayConcurrencyDemo() {
+    showMessage("Starting the concurrency demonstration.", "info");
+
+    const originalLog = console.log;
+    const originalTable = console.table;
+
+    // Format the demo's existing progress logs.
+    console.log = (...messages) => {
+        originalLog(
+            colors.cyan,
+            ...messages,
+            colors.reset
+        );
+    };
+
+    // Highlight the demo's task table.
+    console.table = (...argumentsList) => {
+        originalLog(colors.cyan);
+
+        try {
+            originalTable.apply(console, argumentsList);
+        } finally {
+            originalLog(colors.reset);
+        }
+    };
+
+    try {
+        await runConcurrencyDemo(manager);
+    } finally {
+        // Restore normal logging after the demo finishes or fails.
+        console.log = originalLog;
+        console.table = originalTable;
+    }
+
+    showMessage(
+        "Concurrency demonstration finished. " +
+        "Your saved tasks were not changed.",
+        "success"
+    );
+}
+
+// Load saved data and process menu selections.
 async function main() {
     try {
-        // Load and validate saved records before accepting changes.
         manager.loadData(await loadData());
 
-        let running = true;
+        while (true) {
+            displayMenu();
 
-        while (running) {
-            console.log("\nCollaborative To-Do List");
-            console.log("1. Create user");
-            console.log("2. View users");
-            console.log("3. Add task");
-            console.log("4. View all tasks");
-            console.log("5. View tasks by user");
-            console.log("6. Mark task as completed");
-            console.log("7. Delete task");
-            console.log("8. View tasks by category");
-            console.log("9. Reassign task");
-            console.log("10. Delete user");
-            console.log("11. Run concurrency demo");
-            console.log("12. Exit");
-
-            const choice = (await rl.question("Select an option: ")).trim();
+            const choice = (
+                await rl.question("Select an option: ")
+            ).trim();
 
             try {
                 switch (choice) {
-                    case "1": {
-                        // Receive the name and create a validated user.
-                        const name = await rl.question("Enter user name: ");
-                        const user = manager.addUser(name);
-                        await persistChanges();
+                case "1":
+                    await createUser();
+                    break;
 
-                        console.log(
-                            `User created: ${user.name} (ID ${user.id})`
-                        );
-                        break;
-                    }
+                case "2":
+                    await addTask();
+                    break;
 
-                    case "2":
-                        showRecords(
-                            manager.users,
-                            "No users yet. Create one first."
-                        );
-                        break;
+                case "3":
+                    showRecords(
+                        manager.users,
+                        "No users yet.",
+                        "Users:"
+                    );
+                    break;
 
-                    case "3": {
-                        if (manager.users.length === 0) {
-                            console.log("Create a user before adding a task.");
-                            break;
-                        }
+                case "4":
+                    showRecords(
+                        manager.tasks,
+                        "No tasks yet.",
+                        "All tasks:"
+                    );
+                    break;
 
-                        // Receive task details and its assigned user.
-                        const title = await rl.question("Enter task title: ");
-                        const category = await rl.question("Enter category: ");
+                case "5":
+                    await viewTasksByUser();
+                    break;
 
-                        console.table(manager.users);
-                        const userId = await askForId("Assign to user ID: ");
+                case "6":
+                    await viewTasksByCategory();
+                    break;
 
-                        const task = manager.addTask(title, category, userId);
-                        await persistChanges();
+                case "7":
+                    await completeTask();
+                    break;
 
-                        console.log(
-                            `Task ${task.id} created and assigned to ` +
-                            `${manager.getUser(userId).name}.`
-                        );
-                        break;
-                    }
+                case "8":
+                    await deleteTask();
+                    break;
 
-                    case "4":
-                        showRecords(
-                            manager.tasks,
-                            "No tasks yet. Add one first."
-                        );
-                        break;
+                case "9":
+                    await reassignTask();
+                    break;
 
-                    case "5": {
-                        if (manager.users.length === 0) {
-                            console.log("No users yet. Create one first.");
-                            break;
-                        }
+                case "10":
+                    await deleteUser();
+                    break;
 
-                        console.table(manager.users);
-                        const userId = await askForId("Enter user ID: ");
-                        const user = manager.getUser(userId);
+                case "11":
+                    await displayConcurrencyDemo();
+                    break;
 
-                        console.log(`\nTasks assigned to ${user.name}:`);
-                        showRecords(
-                            manager.getTasksByUser(userId),
-                            "No tasks assigned to this user."
-                        );
-                        break;
-                    }
+                case "12":
+                    showMessage("Goodbye!", "info");
+                    return;
 
-                    case "6": {
-                        if (manager.tasks.length === 0) {
-                            console.log("No tasks yet. Add one first.");
-                            break;
-                        }
-
-                        console.table(manager.tasks);
-                        const taskId = await askForId(
-                            "Enter task ID to complete: "
-                        );
-
-                        const changed = manager.completeTask(taskId);
-
-                        if (!changed) {
-                            console.log("This task is already completed.");
-                            break;
-                        }
-
-                        await persistChanges();
-                        console.log(
-                            `Task "${manager.getTask(taskId).title}" ` +
-                            "marked as completed."
-                        );
-                        break;
-                    }
-
-                    case "7": {
-                        if (manager.tasks.length === 0) {
-                            console.log("No tasks to delete.");
-                            break;
-                        }
-
-                        console.table(manager.tasks);
-                        const taskId = await askForId(
-                            "Enter task ID to delete: "
-                        );
-
-                        const task = manager.deleteTask(taskId);
-                        await persistChanges();
-
-                        console.log(`Task "${task.title}" deleted.`);
-                        break;
-                    }
-
-                    case "8": {
-                        if (manager.tasks.length === 0) {
-                            console.log("No tasks yet. Add one first.");
-                            break;
-                        }
-
-                        const category = await rl.question("Enter category: ");
-
-                        showRecords(
-                            manager.getTasksByCategory(category),
-                            "No tasks found in that category."
-                        );
-                        break;
-                    }
-
-                    case "9": {
-                        if (manager.tasks.length === 0) {
-                            console.log("No tasks to reassign.");
-                            break;
-                        }
-
-                        console.table(manager.tasks);
-                        const taskId = await askForId(
-                            "Enter task ID to reassign: "
-                        );
-
-                        // Check the task before asking for the new user.
-                        manager.getTask(taskId);
-                        console.table(manager.users);
-
-                        const userId = await askForId("Enter new user ID: ");
-                        const task = manager.reassignTask(taskId, userId);
-                        await persistChanges();
-
-                        console.log(
-                            `Task "${task.title}" reassigned to ` +
-                            `${manager.getUser(userId).name}.`
-                        );
-                        break;
-                    }
-
-                    case "10": {
-                        if (manager.users.length === 0) {
-                            console.log("No users to delete.");
-                            break;
-                        }
-
-                        console.table(manager.users);
-                        const userId = await askForId(
-                            "Enter user ID to delete: "
-                        );
-
-                        const user = manager.getUser(userId);
-                        const userTasks = manager.getTasksByUser(userId);
-
-                        const pending = userTasks.filter(
-                            task => task.status === "Pending"
-                        ).length;
-
-                        const completed = userTasks.filter(
-                            task => task.status === "Completed"
-                        ).length;
-
-                        // Explain all affected records before deleting.
-                        console.log(
-                            `${user.name} has ${pending} pending tasks ` +
-                            `and ${completed} completed tasks.`
-                        );
-
-                        console.log(
-                            "Deleting this user will also delete all " +
-                            `${userTasks.length} assigned tasks.`
-                        );
-
-                        const confirmation = (
-                            await rl.question("Continue? (yes/no): ")
-                        ).trim().toLowerCase();
-
-                        if (confirmation !== "yes") {
-                            console.log("Deletion cancelled.");
-                            break;
-                        }
-
-                        manager.deleteUser(userId);
-                        await persistChanges();
-
-                        console.log(
-                            `User "${user.name}" and their assigned tasks deleted.`
-                        );
-                        break;
-                    }
-
-                    case "11":
-                        await runConcurrencyDemo(manager);
-                        break;
-
-                    case "12":
-                        running = false;
-                        console.log("Goodbye!");
-                        break;
-
-                    default:
-                        console.log("Invalid option. Choose 1 through 12.");
-                }
+                default:
+                    showMessage(
+                        "Invalid option. Choose 1 through 12.",
+                        "error"
+                    );
+            }
             } catch (error) {
-                // Stop on storage failure; allow another choice after invalid input.
                 if (error.stopApplication) {
                     throw error;
                 }
 
-                console.log(error.message);
+                showMessage(error.message, "error");
             }
+
         }
     } finally {
-        // Close terminal input after exit or failure.
+        // Close terminal input when the application finishes.
         rl.close();
     }
 }
 
+// Report errors that prevent the application from continuing.
 main().catch(error => {
-    console.error("Application stopped:", error.message);
+    showMessage(
+        `Application stopped: ${error.message}`,
+        "error"
+    );
+
     process.exitCode = 1;
 });
