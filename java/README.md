@@ -1,6 +1,6 @@
 # Java Collaborative To-Do List
 
-Java counterpart of Aliza's grouped 12-option JavaScript implementation.
+Java counterpart of JavaScript implementation.
 Requires JDK 17 or newer, including javac. Gson is bundled in lib.
 
 ## Installation
