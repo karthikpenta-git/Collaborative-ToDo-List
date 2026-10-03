@@ -1,22 +1,8 @@
+/** Stores a user's permanent ID and display name. */
 public class User {
-    private int id;
-    private String name;
-
-    public User(int id, String name) {
-        this.id = id;
-        this.name = name;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    @Override
-    public String toString() {
-        return id + " - " + name;
-    }
+    private final int id;
+    private final String name;
+    public User(int id, String name) { this.id = id; this.name = name; }
+    public int getId() { return id; }
+    public String getName() { return name; }
 }

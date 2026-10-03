@@ -1,44 +1,19 @@
+/** Stores a categorized task and the ID of its assigned user. */
 public class Task {
-    private int id;
-    private String title;
-    private String category;
-    private User assignedUser;
-    private TaskStatus status;
-
-    public Task(int id, String title, String category, User assignedUser) {
-        this.id = id;
-        this.title = title;
-        this.category = category;
-        this.assignedUser = assignedUser;
-        this.status = TaskStatus.PENDING;
+    private final int id;
+    private final String title;
+    private final String category;
+    private int assignedUserId;
+    private String status = "Pending";
+    public Task(int id, String title, String category, int assignedUserId) {
+        this.id = id; this.title = title; this.category = category;
+        this.assignedUserId = assignedUserId;
     }
-
-    public int getId() {
-        return id;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public User getAssignedUser() {
-        return assignedUser;
-    }
-
-    public TaskStatus getStatus() {
-        return status;
-    }
-
-    public void markCompleted() {
-        status = TaskStatus.COMPLETED;
-    }
-
-    @Override
-    public String toString() {
-        return "Task ID: " + id
-                + " | Title: " + title
-                + " | Category: " + category
-                + " | Assigned To: " + assignedUser.getName()
-                + " | Status: " + status;
-    }
+    public int getId() { return id; }
+    public String getTitle() { return title; }
+    public String getCategory() { return category; }
+    public int getAssignedUserId() { return assignedUserId; }
+    public String getStatus() { return status; }
+    public void complete() { status = "Completed"; }
+    public void assignTo(int userId) { assignedUserId = userId; }
 }
