@@ -1,0 +1,44 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Karthik"
+    },
+    {
+      "id": 2,
+      "name": "Aliza"
+    }
+  ],
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Complete JavaScript Application",
+      "category": "Development",
+      "assignedUser": {
+        "id": 1,
+        "name": "Karthik"
+      },
+      "status": "COMPLETED"
+    },
+    {
+      "id": 2,
+      "title": "Prepare Project Documentation",
+      "category": "Documentation",
+      "assignedUser": {
+        "id": 2,
+        "name": "Aliza"
+      },
+      "status": "PENDING"
+    },
+    {
+      "id": 3,
+      "title": "Test Collaborative Application",
+      "category": "Testing",
+      "assignedUser": {
+        "id": 1,
+        "name": "Karthik"
+      },
+      "status": "PENDING"
+    }
+  ]
+}
